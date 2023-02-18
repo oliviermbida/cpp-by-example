@@ -18,25 +18,25 @@ Do not directly include standard libraries unless full visibility is required an
 # Use subset of vector container from STL by limiting behaviour using `delete`.
 
 - 1. Assignment to vector container by a list initializer shall not be used.
-		
-		template<>
-		std::vector<std::string>& 
-		std::vector<std::string>::operator=(std::initializer_list<std::string>) = delete;
+
+			template<>
+			std::vector<std::string>& 
+			std::vector<std::string>::operator=(std::initializer_list<std::string>) = delete;
 		
 - 2. Assignment to vector container by reference to a constant vector string shall not be used
 
-		template<>
-		std::vector<std::string>& 
-		std::vector<std::string>::operator=(const std::vector<std::string>&) = delete;
+			template<>
+			std::vector<std::string>& 
+			std::vector<std::string>::operator=(const std::vector<std::string>&) = delete;
 	
 - 3. Assignment to vector container by rvalue reference to a vector string shall not be used
 
-		template<>
-		std::vector<std::string>& 
-		std::vector<std::string>::operator=(std::vector<std::string>&&) = delete;
+			template<>
+			std::vector<std::string>& 
+			std::vector<std::string>::operator=(std::vector<std::string>&&) = delete;
 
-		// End of _LIBRARY_H_		
-		#endif
+			// End of _LIBRARY_H_		
+			#endif
 		
 It is good practice to put your program defaults in a separate file.
 
