@@ -63,11 +63,17 @@ Indirectly include vector container library with the subset
 		
 		// Calls 3 (move assignment)
 		std::vector<std::string> two_words{"Goodbye","End"};
-		my_words = static_cast<std::vector<std::string>&&>(two_words);	
+				// xvalue assignment
+		my_words = static_cast<std::vector<std::string>&&>(two_words); 
+				// prvalue assignment
+		my_words = std::vector<std::string>{"Another","End"};	
 						// Error: use of deleted function
 
 # Note: Memory management 
 The move assignment (Call 3 above) is more efficient and therefore the function should not be removed. You will then have a subset of the vector container from STL which only allows copying via the move assignment and efficient in memory management.
+
+		my_words = static_cast<std::vector<std::string>&&>(two_words); 
+		// two_words is left in an unspecified but valid state
 
 # Reference
 - The C++ Programming Language 4th Edition Bjarne Stroustrup §7.7.2 Rvalue References
