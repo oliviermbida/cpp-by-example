@@ -46,7 +46,8 @@ It is good practice to put your program defaults in a separate file.
 		// Default initialization
 		std::vector<std::string> my_words{"Hello","Welcome","C++"};
 
-Indirectly include vector container library with the subset	
+Indirectly include vector container library with the subset
+		
 		//-----------------------------
 		// main.cpp
 		
