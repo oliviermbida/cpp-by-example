@@ -2129,3 +2129,110 @@ lib
 	
 }
 //---End lib
+//--- User code
+namespace
+helper
+{
+	template <typename Iterator, 
+							typename Function>
+	void 
+	for_each(Iterator first,
+						Iterator last, 
+						Function f) 
+	{
+    while (first != last) 
+    {
+        f(*first);
+        ++first;
+    }	
+	}
+	template <class Itor>
+	void
+	print(Itor first, Itor last)
+	{
+		auto 
+		printFunc = 
+		[](const int& n) 
+		{ 
+			std::cout << '_' << n; 
+		};
+		std::cout << *first;
+		helper::for_each(first+1, last, printFunc);
+    std::cout << '\n';	
+	}
+	
+	template <typename T>
+	void
+	is_same(T& one, 
+						T& two)
+	{
+		if (one == two)
+		{
+			std::cout << "v1 is the same as v2\n";
+		}
+		else if ( one < two)
+		{
+			std::cout << "v1 is smaller than v2\n";
+		}
+		else
+		{
+			std::cout << "v1 is larger than v2\n";
+		}	
+	}
+	template <typename T>
+	using vector						= lib::Vector<T,lib_impl::Allocator<T>>;	
+	
+	void
+	use()
+	noexcept(false)
+	{	
+		// copy constructor initializer list	
+		vector<int> v1({1,2,3,4,5,6,7,8,9});
+		std::cout << "v1 capacity: " << v1.capacity() << std::endl;
+		print(v1.begin(),v1.end());
+		decltype(v1) v2{};
+		// assignment initializer list
+		v2 = {12,21,45};
+		std::cout << "v2 capacity: " << v2.capacity() << std::endl;		
+		print(v2.begin(),v2.end());
+		// assignment operator
+		v1 = v2;
+		std::cout << "v1 capacity: " << v1.capacity() << std::endl;		
+		print(v1.begin(),v1.end());	
+		// add elements using pusb_back function
+		v2.push_back(17);
+		v2.push_back(48);	
+		std::cout << "v2 capacity: " << v2.capacity() << std::endl;				
+		print(v2.begin(),v2.end());	
+		// comparism	
+		is_same(v1,v2);
+		// delete element using erase function
+		v2.erase(&v2[3]);
+		print(v2.begin(),v2.end());
+		// add elements in initializer list using insert function
+		v1.insert(&v1[1],{55,95,123});		
+		print(v1.begin(),v1.end());
+		// delete elements using iterators in erase function
+		v1.erase(v1.begin(),&v1[2]);		
+		print(v1.begin(),v1.end());	
+		// add memory on top of capacity()
+		v2.reserve(12);	
+		std::cout << "v2 capacity: " << v2.capacity() << std::endl;
+		// shrink Vector	
+		v2.resize(2);	
+		print(v2.begin(),v2.end());	
+		// resize does not change capacity if smaller than it
+		std::cout << "v2 capacity: " << v2.capacity() << std::endl;
+		// resize changes size() if smaller than capacity
+		std::cout << "v2 size: " << v2.size() << std::endl;
+		// resize changes size() and capacity() if larger than original capacity
+		// default construct all elements not already constructed
+		// therefore leaves size() = capacity()			
+		v2.resize(14);
+		print(v2.begin(),v2.end());				
+		std::cout << "v2 capacity: " << v2.capacity() << std::endl;
+		std::cout << "v2 size: " << v2.size() << std::endl;			
+		throw std::runtime_error("Vector::use() error");
+	}
+}
+//--- User code
