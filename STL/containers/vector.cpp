@@ -378,7 +378,795 @@ type
     }; 
 }
 //---NS type
+//--- Implementation details
+namespace
+lib_impl
+{
+	template <typename InputIt>
+	void 
+	destroy(InputIt first, 
+					InputIt last)	
+	{
+	  using T = typename std::iterator_traits<InputIt>::value_type;	
+		for (; first!=last; ++first)
+			first->~T();
+	}
+	template <typename InputIterator, 
+						typename Size,
+	 					typename ForwardIterator>
+	ForwardIterator
+	uninitialized_copy_n(InputIterator first, 
+											Size n,
+		          				ForwardIterator result)
+	{
+		ForwardIterator curr = result;
+		using Type = typename std::iterator_traits<ForwardIterator>::value_type;
+		try
+	 	{
+			for (; n > 0; --n, ++first, ++curr)
+			{
+				::new( static_cast<void*>(std::addressof(*curr)) ) Type(*first);	
+			}	   
+			return curr;
+	 	}
+		catch(...)
+	 	{
+			destroy(result, curr);
+			throw std::runtime_error{"Copy initialization failed"};
+	 	}
+	}
+	// Initializer list
+	template <class T>
+	class 
+	initializer_list
+	{
+		public:
+		  using value_type                             = T;
+		  using size_type                              = std::size_t;
+		  using difference_type                        = std::ptrdiff_t;
+		  using iterator                             	 = const T*;
+		  using const_iterator                         = const T*;
+		  using reference                      	 			 = const T&;    		  		  
+		  using const_reference                      	 = const T&;
+		  
+		  constexpr 
+		  initializer_list() 
+		  	: M_begin(0), 
+		  		M_len(0),
+		  		M_array(0) 
+		  { 
+		  }
+		  constexpr 
+		  size_type
+		  size() 
+		  { 
+		  	return M_len; 
+		  }
+		  constexpr 
+		  const_iterator
+		  begin() 
+		  { 
+		  	return M_begin; 
+		  }
+		  constexpr 
+		  const_iterator
+		  end() 
+		  { 
+		  	return begin() + size(); 
+		  }
+			template <typename ...Args>
+			initializer_list(Args&&...args)
+				: M_begin{M_array}
+			{
+				T M_copy[]{std::forward<Args>(args)...};
+				M_len = sizeof(M_copy) / sizeof(T);				
+				uninitialized_copy_n(std::move(M_copy),M_len,M_array);
+			}		  
+		private:
+			iterator          M_begin;
+			size_type         M_len;
+			T									M_array[];
+			
+			constexpr 
+			initializer_list(const_iterator itr, 
+												size_type l) 
+				: M_begin(itr), 
+					M_len(l),
+					M_array(0)
+			{
+				uninitialized_copy_n(M_begin,M_len,M_array);			
+			}
+	};
+	template <class T>
+	constexpr 
+	const T*
+	begin(lib_impl::initializer_list<T> ls)
+	{ 
+		return ls.begin(); 
+	}
+	template <class T>
+	constexpr 
+	const T*
+	end(lib_impl::initializer_list<T> ls)
+	{ 
+		return ls.end(); 
+	}
+	//---	
+	// Allocator
+	template <class T>
+	class
+	Allocator
+	{
+		public:
+		  using value_type                             = T;
+		  using size_type                              = std::size_t;
+		  using difference_type                        = std::ptrdiff_t;
+		  using pointer                             	 = T*;
+		  using const_pointer                          = const T*;
+		  using reference                      	 			 = T&;    		  		  
+		  using const_reference                      	 = const T&;    
 
+			template <class T2>
+			struct
+			rebind
+			{
+				typedef Allocator<T2> other; 
+			};
+ 		
+		  constexpr 
+		  Allocator() 
+		  noexcept
+		  {
+		  }
+		  
+		  constexpr 
+		  Allocator(const Allocator&) 
+		  noexcept
+		  =default;
+		  constexpr 
+		  Allocator& 
+		  operator=(const Allocator&) 
+		  = default;		
+		  // conversion  
+		  template<class U> 
+		  constexpr 
+		  Allocator(const Allocator<U>& other) 
+		  noexcept
+		  	: Allocator<U>(other)
+		  {
+		  }
+		  
+		  ~Allocator()
+		  {
+		  }	
+	 		// Return shall be used
+		  [[nodiscard]] 
+		  constexpr 
+		  pointer 
+		  allocate(const size_type n)
+		  {
+		  	// Calls class-specific overload of new
+		  	return reinterpret_cast<pointer>( operator new( n * sizeof(value_type) ) );
+		  }
+
+		  constexpr 
+		  void 
+		  deallocate(pointer p, const size_type n)
+		  {
+		  	::operator delete(p,n);
+		  	
+		  }
+			void 
+			construct( pointer p, 
+								const_reference val )
+			{
+				using Type = typename std::iterator_traits<pointer>::value_type;
+				::new( static_cast<void*>(std::addressof(*p)) ) Type(val);
+			}
+			template <typename... Args>
+			void
+			construct(pointer p, 
+									Args&&... args)
+			{
+				using Type = typename std::iterator_traits<pointer>::value_type;			
+				::new( static_cast<void*>(std::addressof(*p)) ) Type(std::forward<Args>(args)...);
+			}
+			void
+			destroy(pointer p) 
+			{
+				p->~T(); 
+			}    
+		  // Calls global overload of new
+		  static void* operator new(size_type cnt)
+		  {
+		      return ::operator new(cnt);
+		  }
+	 
+		  static void* operator new[](size_type cnt)
+		  {
+		      return ::operator new[](cnt);
+		  } 
+		  size_type
+		  max_size() const
+		  {
+		  	return std::size_t(-1) / sizeof(T);
+		  }		  
+	};
+	template <class T>
+	inline
+	bool
+	operator==(const Allocator<T>&, 
+						const Allocator<T>&)
+	{
+		return std::true_type();
+	}
+	template <class T>
+	inline
+	bool
+	operator!=(const Allocator<T>&, 
+						const Allocator<T>&)
+	{
+		return std::false_type();
+	}
+		// Allocator<void> specialization.
+	template<>
+	class 
+	Allocator<void>
+	{
+		public:
+		  using value_type                             = void;
+		  using size_type                              = std::size_t;
+		  using difference_type                        = std::ptrdiff_t;
+		  using pointer                             	 = void*;
+		  using const_pointer                          = const void*; 
+
+			template <class T2>
+			struct
+			rebind
+			{
+				typedef Allocator<T2> other; 
+			};	
+	};
+	
+	//---	
+	
+	// Iterator
+	struct input_iterator_tag { };
+	struct output_iterator_tag { };
+	struct forward_iterator_tag : public input_iterator_tag { };
+	struct bidirectional_iterator_tag : public forward_iterator_tag { };
+	struct random_access_iterator_tag : public bidirectional_iterator_tag { };
+		
+	template <typename Iterator>
+	struct 
+	Iterator_traits	
+	{
+		typedef typename Iterator::iterator_category iterator_category;
+		typedef typename Iterator::value_type        value_type;
+		typedef typename Iterator::difference_type   difference_type;
+		typedef typename Iterator::pointer           pointer;
+		typedef typename Iterator::reference         reference;
+	};
+	template <typename T>
+	struct 
+	Iterator_traits<T*>	
+	{
+		typedef random_access_iterator_tag					 iterator_category;
+		typedef T															       value_type;
+		typedef std::ptrdiff_t										   difference_type;
+		typedef T*												           pointer;
+		typedef T&													         reference;
+	};
+	template <typename T>
+	struct 
+	Iterator_traits<const T*>	
+	{
+		typedef random_access_iterator_tag					 iterator_category;
+		typedef T															       value_type;
+		typedef std::ptrdiff_t										   difference_type;
+		typedef const T*									           pointer;
+		typedef const T&										         reference;
+	};				
+		// Normal iterator	
+	template <typename Iter,
+						typename Container>
+	class
+	Normal_iterator
+	{
+			typedef Iterator_traits<Iter>       Traits_type;
+			template <typename It>
+			using container_type_enable_if					= typename std::enable_if<(std::is_same<It,
+																									typename Container::pointer>::value),
+																									Container>::type;	
+		public:
+			using iterator_type											= Iter;		
+			using iterator_category									= typename Traits_type::iterator_category;
+			using value_type												= typename Traits_type::value_type;
+			using difference_type										= typename Traits_type::difference_type;
+			using reference													= typename Traits_type::reference;
+			using pointer														= typename Traits_type::pointer;	
+			
+			constexpr
+			Normal_iterator(const iterator_type& it) 
+				: M_curr(it) 
+			{ 
+			}
+			// Allow iterator to const_iterator conversion
+			template <typename I>
+			Normal_iterator(const Normal_iterator<I, container_type_enable_if<I>>& it)
+				: M_curr(it.base()) 
+			{ 
+			}
+			// Forward iterator requirements
+			reference
+			operator*() const
+			{
+				return *M_curr;
+			}
+			pointer
+			operator->() const
+			{
+				return &(operator*());
+			}																			
+			Normal_iterator&
+			operator++()
+			{ 
+				++M_curr;
+				return *this;
+			}
+			Normal_iterator
+			operator++(int)
+			{ 
+				return Normal_iterator(M_curr++);
+			}	
+			// Bidirectional iterator requirements		
+			Normal_iterator&
+			operator--()
+			{ 
+				--M_curr;
+				return *this;
+			}
+			Normal_iterator
+			operator--(int)
+			{ 
+				return Normal_iterator(M_curr--);
+			}	
+			// Random access iterator requirements
+			reference
+			operator[](const difference_type& n) const	
+			{
+				return M_curr[n];
+			}	
+			Normal_iterator&
+			operator+=(const difference_type& n)	
+			{
+				M_curr += n; 
+				return *this;
+			}	
+			Normal_iterator
+			operator+(const difference_type& n)	const
+			{
+				return Normal_iterator(M_curr + n);
+			}
+			Normal_iterator&
+			operator-=(const difference_type& n)	
+			{
+				M_curr -= n; 
+				return *this;
+			}	
+			Normal_iterator
+			operator-(const difference_type& n)	const
+			{
+				return Normal_iterator(M_curr - n);
+			}	
+			const Iter&
+			base() const
+			{
+				return M_curr;
+			}								
+		protected:
+			Iter M_curr{};
+			
+	};
+	// Forward iterator requirements
+	template <typename ItorL, 
+						typename ItorR, 
+						typename Container>
+	inline
+	bool
+	operator==(const Normal_iterator<ItorL, 
+																		Container>& lhs,
+							const Normal_iterator<ItorR, 
+																			Container>& rhs)
+	{
+		return (lhs.base() == rhs.base());
+	}
+	template <typename Itor, 
+						typename Container>
+	inline
+	bool
+	operator==(const Normal_iterator<Itor, 
+																		Container>& lhs,
+							const Normal_iterator<Itor, 
+																			Container>& rhs)
+	{
+		return (lhs.base() == rhs.base());
+	}
+	template <typename ItorL, 
+						typename ItorR, 
+						typename Container>
+	inline
+	bool
+	operator!=(const Normal_iterator<ItorL, 
+																		Container>& lhs,
+							const Normal_iterator<ItorR, 
+																			Container>& rhs)
+	{
+		return (!(lhs == rhs));
+	}
+	template <typename Itor, 
+						typename Container>
+	inline
+	bool
+	operator!=(const Normal_iterator<Itor, 
+																		Container>& lhs,
+							const Normal_iterator<Itor, 
+																			Container>& rhs)
+	{
+		return  (!(lhs == rhs));
+	}
+	// Random access iterator requirements	
+	
+	//
+	template <typename IteratorL, 
+							typename IteratorR, 
+							typename Container>
+	inline 
+	typename Normal_iterator<IteratorL, Container>::difference_type
+	operator-(const Normal_iterator<IteratorL, Container>& lhs,
+						const Normal_iterator<IteratorR, Container>& rhs)
+	{
+		return lhs.base() - rhs.base(); 
+	}
+	
+	template <typename Iterator, 
+							typename Container>
+	inline 
+	typename Normal_iterator<Iterator, Container>::difference_type
+	operator-(const Normal_iterator<Iterator, Container>& lhs,
+						const Normal_iterator<Iterator, Container>& rhs)
+	{
+		return lhs.base() - rhs.base(); 
+	}
+	template<typename Iterator, 
+						typename Container>
+	inline 
+	Normal_iterator<Iterator, Container>
+	operator+(typename Normal_iterator<Iterator, Container>::difference_type n,
+							const Normal_iterator<Iterator, Container>& i)
+	{
+		return Normal_iterator<Iterator, Container>(i.base() + n);
+	}
+		// Reverse iterator
+	template <typename Iter>
+	class
+	Reverse_iterator
+	{
+			typedef Iterator_traits<Iter>       Traits_type;	
+		public:
+			using iterator_type											= Iter;		
+			using iterator_category									= typename Traits_type::iterator_category;
+			using value_type												= typename Traits_type::value_type;
+			using difference_type										= typename Traits_type::difference_type;
+			using reference													= typename Traits_type::reference;
+			using pointer														= typename Traits_type::pointer;	
+			
+			Reverse_iterator() 
+				: M_curr() 
+			{ 
+			}
+			explicit
+			Reverse_iterator(iterator_type it) 
+				: M_curr(it) 
+			{ 
+			}
+			template <typename I>
+			Reverse_iterator(const Reverse_iterator<I>& it)
+				: M_curr(it.base())
+			{			
+			}
+			iterator_type
+			base() const
+			{
+				return M_curr;
+			}
+			reference
+			operator*() const
+			{
+				Iter tmp{M_curr};
+				return (*--tmp);
+			}
+			pointer
+			operator->() const
+			{
+				return &(operator*());
+			}
+			Reverse_iterator&
+			operator++()
+			{
+				--M_curr;
+				return *this;
+			}
+			Reverse_iterator
+			operator++(int)
+			{
+				Reverse_iterator tmp = *this;
+				--M_curr;
+				return tmp;
+			}
+			Reverse_iterator&
+			operator--()
+			{
+				++M_curr;
+				return *this;
+			}
+			Reverse_iterator
+			operator--(int)
+			{
+				Reverse_iterator tmp = *this;
+				++M_curr;
+				return tmp;
+			}	
+			Reverse_iterator
+			operator+(difference_type n) const
+			{
+				return Reverse_iterator(M_curr - n);
+			}	
+			Reverse_iterator&
+			operator+=(difference_type n)	
+			{
+				M_curr -= n;
+				return *this;
+			}
+			Reverse_iterator
+			operator-(difference_type n) const
+			{
+				return Reverse_iterator(M_curr + n);
+			}	
+			Reverse_iterator&
+			operator-=(difference_type n)	
+			{
+				M_curr += n;
+				return *this;
+			}
+			reference
+			operator[](difference_type n) const		
+			{
+				return *(*this + n);
+			}	
+		protected:
+			Iter M_curr{};	
+	};
+	template<typename Iter>
+	inline
+	bool
+	operator==(const Reverse_iterator<Iter>& lhs,
+							const Reverse_iterator<Iter>& rhs)
+	{
+		return (lhs.base() == rhs.base());
+	}
+	template<typename Iter>
+	inline
+	bool
+	operator!=(const Reverse_iterator<Iter>& lhs,
+							const Reverse_iterator<Iter>& rhs)
+	{
+		return (!(lhs == rhs));
+	}
+	template<typename Iter>
+	inline
+	bool
+	operator<(const Reverse_iterator<Iter>& lhs,
+							const Reverse_iterator<Iter>& rhs)
+	{
+		return (rhs.base() < lhs.base());
+	}
+	template<typename Iter>
+	inline
+	bool
+	operator>(const Reverse_iterator<Iter>& lhs,
+							const Reverse_iterator<Iter>& rhs)
+	{
+		return (rhs < lhs);
+	}	
+	template<typename Iter>
+	inline
+	bool
+	operator<=(const Reverse_iterator<Iter>& lhs,
+							const Reverse_iterator<Iter>& rhs)
+	{
+		return (!(rhs < lhs));
+	}
+	template<typename Iter>
+	inline
+	bool
+	operator>=(const Reverse_iterator<Iter>& lhs,
+							const Reverse_iterator<Iter>& rhs)
+	{
+		return (!(lhs < rhs));
+	}		
+	//---
+	// Initialization helpers
+	template<class InputIterator, 
+					class A>
+	void 
+	destroy_a(InputIterator first, 
+							InputIterator last, 
+							A alloc)
+	noexcept(true)
+	{
+		for (; first != last; ++first)
+			alloc.destroy(std::addressof(*first));	
+	}	
+		
+	template<class InputIterator, 
+					class A>
+	void 
+	uninitialized_fill_a(InputIterator first, 
+												InputIterator last, 
+												A alloc)
+	noexcept(false)
+	{
+		typedef 
+		typename Iterator_traits<InputIterator>::value_type
+		ValueType;
+		
+		InputIterator current = first;
+		try
+		{
+			for (; current != last; ++current)
+				alloc.construct(std::addressof(*current), ValueType());
+		}
+		catch(...)
+		{
+			//for (; first != current; ++first)
+			//	alloc.destroy(std::addressof(*first));
+			destroy_a(first,current,alloc);
+			throw std::runtime_error{"Default initialization failed"};			
+		}
+	}
+	
+	template<typename ForwardIterator, 
+						typename Size, 
+						typename T,
+						typename A>
+	void
+	uninitialized_fill_n_a(ForwardIterator first, 
+													Size n,
+													const T& val, 
+													A& alloc)
+	{
+		ForwardIterator curr = first;
+		try
+		{
+			for (; n > 0; --n, ++curr)
+			{
+				alloc.construct(std::addressof(*curr), val);
+			}
+		}
+		catch(...)
+		{
+			destroy_a(first, curr, alloc);
+			throw std::runtime_error{"Default initialization failed"};						
+		}
+	}
+	
+	template<class InputIterator,
+						class ForwardIterator, 
+						class A>
+	ForwardIterator 
+	uninitialized_copy_a(InputIterator first, 
+												InputIterator last,
+												ForwardIterator	result, 
+												A alloc)
+	noexcept(false)
+	{
+		ForwardIterator curr{result};
+		try
+		{
+			for (; first != last; ++first, ++curr)
+			{
+				alloc.construct(std::addressof(*curr), *first);
+			}
+			return curr;
+		}
+		catch(...)
+		{
+			destroy_a(result, curr, alloc);
+			throw std::runtime_error{"Copy initialization failed"};						
+		}
+	
+	}
+	
+	template<typename InputIterator, 
+						typename ForwardIterator>
+	ForwardIterator
+	copy(InputIterator first, 
+	 			InputIterator last,
+	 			ForwardIterator result)
+	{
+	 	for (; first != last; (void)++first, (void)++result)
+	 	{
+	 		*result = *first;
+	 	}
+	 	return result;
+	}
+	
+	template<typename ForwardIt, 
+						typename T>
+	void 
+	fill(ForwardIt first, 
+				ForwardIt last, 
+				const T& val)
+	{
+		for (; first != last; ++first)
+			*first = val;
+	}
+	
+	template<typename OutputIt, 
+						typename Size, 
+						typename T>		
+	OutputIt 
+	fill_n(OutputIt result, 
+					Size count, 
+					const T& val)
+	{
+		for (Size i = 0; i < count; i++)
+			*result++ = val;
+		return result;
+	}
+	
+	template <typename InputIterator, 
+							typename OutputIterator>	
+	OutputIterator
+	move_backward(InputIterator first, 
+									InputIterator last,
+									OutputIterator result)
+	{
+		while (first != last)
+		{
+			*(--result) = std::move(*(--last));
+		}
+		return result;
+	}
+	
+	template <typename InputIt, 
+							typename NoThrowForwardIt,
+							typename	Alloc>
+	NoThrowForwardIt 
+	uninitialized_move_a(InputIt first, 
+											InputIt last, 
+											NoThrowForwardIt d_first,
+											Alloc a)
+	{
+		NoThrowForwardIt current = d_first;
+		try
+		{
+			for (; first != last; ++first, (void) ++current) 
+			{
+				a.construct(current, std::move(*first));
+			}
+			return current;
+		}
+		catch(...)
+		{
+			destroy_a(d_first, current,a);
+			throw std::runtime_error{"Move initialization failed"};						
+		}
+	}
+	//---	
+}
+//--- NS lib_impl
 //-- User library
 namespace
 lib
