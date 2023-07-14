@@ -13,7 +13,100 @@
 // Usage:
 // g++ vector.cpp -o test -lpthread
 
-// Type Traits
+//--- Implementation details
+namespace
+lib_impl
+{
+	class
+	BadAlloc
+		: public std::bad_alloc
+	{
+		public:
+			const char* 
+			what() const 
+			noexcept
+			override
+			{
+				return "Memory Bad Allocation";
+			}
+	};
+}
+//--- NS lib_impl
+
+// Global scope
+// The program is ill-formed if a replacement is defined in namespace other than global namespace,
+// or if it is defined as a static non-member function at global scope. 
+
+// no inline, required by [replacement.functions]
+void* 
+operator 
+new(std::size_t sz)
+{
+	std::printf("1) new(size_t), size = %zu\n", sz);
+  // avoid std::malloc(0) which may return nullptr on success
+  if (sz == 0)
+      ++sz; 
+
+  if (void *ptr = std::malloc(sz))
+      return ptr;
+	// required by [new.delete.single]
+  throw lib_impl::BadAlloc{}; 
+}
+ 
+// no inline, required by [replacement.functions]
+void* 
+operator 
+new[](std::size_t sz)
+{
+	std::printf("2) new[](size_t), size = %zu\n", sz);
+  if (sz == 0)
+      ++sz; 
+
+  if (void *ptr = std::malloc(sz))
+      return ptr;
+
+  throw lib_impl::BadAlloc{}; 
+}
+ 
+void 
+operator 
+delete(void* ptr) 
+noexcept
+{
+    std::puts("3) delete(void*)");
+    std::free(ptr);
+}
+ 
+void 
+operator 
+delete(void* ptr, 
+			std::size_t size) 
+noexcept
+{
+    std::printf("4) delete(void*, size_t), size = %zu\n", size);
+    std::free(ptr);
+}
+ 
+void 
+operator 
+delete[](void* ptr) 
+noexcept
+{
+    std::puts("5) delete[](void* ptr)");
+    std::free(ptr);
+}
+ 
+void 
+operator 
+delete[](void* ptr, 
+				std::size_t size) 
+noexcept
+{
+    std::printf("6) delete[](void*, size_t), size = %zu\n", size);
+    std::free(ptr);
+}
+//---End Global Namespace
+//---Type checking
 namespace
 type
 {
