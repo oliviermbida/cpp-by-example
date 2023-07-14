@@ -348,7 +348,150 @@ type
     }; 
 }
 //---NS type
+//---Implementation details
+namespace
+lib_impl
+{
+	template <class C>
+	constexpr 
+	auto 
+	begin(C& c) -> decltype(c.begin()) 
+	{
+		return c.begin();
+	}
+	template <class C>
+	constexpr 
+	auto 
+	end(C& c) -> decltype(c.end()) 
+	{
+		return c.end();	
+	}	
+	template <class T, 
+							std::size_t n>
+	constexpr
+	T*
+	begin(T(&arr)[n])
+	{
+		return arr;
+	}
+	template <class T, 
+							std::size_t n>
+	constexpr
+	T*
+	end(T(&arr)[n])
+	{
+		return (arr+n);
+	}	
+	template<class InputIt, 
+					class NoThrowForwardIt>
+	NoThrowForwardIt 
+	uninitialized_copy(InputIt first, 
+										InputIt last, 
+										NoThrowForwardIt d_first)
+	noexcept(false)
+	{
+	  using T = typename std::iterator_traits<NoThrowForwardIt>::value_type;
+	  NoThrowForwardIt current = d_first;
+	  try 
+	  {
+      for (; first != last; ++first, (void) ++current) 
+      {
+      	// non-allocating placement [new] allocation function
+      	// pointer to a memory area to initialize the object at 
+        ::new( static_cast<void*>(std::addressof(*current)) ) T(*first);
+      }
+      return current;
+	  } 
+	  catch (...) 
+	  {
+      for (; d_first != current; ++d_first) 
+      {
+        d_first->~T();
+      }
+      throw;
+	  }
+	}
+	template<typename OutputIt, 
+						typename Size, 
+						typename T>		
+	OutputIt 
+	fill_n(OutputIt result, 
+					Size count, 
+					const T& val)
+	{
+		for (Size i = 0; i < count; i++)
+			*result++ = val;
+		return result;
+	}
+	// Iterator swap
+	template <bool BType>
+	struct
+	iter_s
+	{
+		template<typename Iter1, 
+							typename Iter2>
+		static
+		void
+		swap(Iter1 a, 
+								Iter2 b)
+		{
+			typedef typename std::iterator_traits<Iter1>::value_type
+			ValueType1;
+			ValueType1 tmp = std::move(*a);
+			*a = std::move(*b);
+			*b = std::move(tmp);
+		}
+	};
+	template <>
+	struct 
+	iter_s<true>
+	{
+		template<typename Iter1, 
+							typename Iter2>
+		static
+		void
+		swap(Iter1 a, 
+								Iter2 b)
+		{
+			std::swap(*a, *b);
+		}	
+	};
+	template <typename Iter1, 
+							typename Iter2>
+	inline 
+	void
+	iter_swap(Iter1 a, Iter2 b)
+	{
+		typedef typename std::iterator_traits<Iter1>::value_type
+		ValueType1;
+		typedef typename std::iterator_traits<Iter2>::value_type
+		ValueType2;
 
+		typedef typename std::iterator_traits<Iter1>::reference
+		ReferenceType1;
+		typedef typename std::iterator_traits<Iter2>::reference
+		ReferenceType2;
+		
+		iter_s <type::is_same<ValueType1, ValueType2>::value
+							&& type::is_same<ValueType1&, ReferenceType1>::value
+							&& type::is_same<ValueType2&, ReferenceType2>::value>::
+		swap(a, b);
+	}
+	template <typename Iter1,
+							typename Iter2>
+	Iter2
+	swap_ranges(Iter1 first1, 
+								Iter1 last1,
+	 							Iter2 first2)
+	{ 
+		for (; first1 != last1; ++first1, ++first2)
+		{
+			lib_impl::iter_swap(first1, first2);
+		}
+		return first2;
+	}			
+}
+//---NS lib_impl
 //-- User library
 namespace
 lib
