@@ -729,3 +729,55 @@ lib
 	}				
 }
 //--- NS lib
+//-- User code
+namespace
+helper
+{
+	using namespace lib;
+	
+	template <class Itor>
+	void
+	print(Itor first, Itor last)
+	{
+    for (auto it = first; it != last; ++it)
+    {
+        std::cout << *it << '_';
+    }
+    std::cout << '\n';	
+	}
+	void
+	use()
+	{
+		Array<int,5> arr1{2,3,5,7,9};
+		Array<int,5> arr2{1,3,5,10,15};
+		print(arr1.begin(),arr1.end());
+		print(arr2.begin(),arr2.end());
+		if (arr1 <= arr2)
+		{
+			std::cout << "arr1 <= arr2\n";
+		}
+		else if (arr1 > arr2)
+		{
+			std::cout << "arr1 > arr2\n";		
+		}
+		else
+		{
+			std::cout << "arr1 not comparable to arr2\n";		
+		}
+		arr1.fill(5);
+		print(arr1.begin(),arr1.end());	
+		
+		class
+		A
+		{
+			public:
+				A(){};
+				//A(const A&)=delete;
+				//A&
+				//operator=(const A&)=delete;
+		};
+		Array<A,1> test{};	
+		throw std::runtime_error("Array::use() error");
+	}
+}
+//--- NS helper
