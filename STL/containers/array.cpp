@@ -348,3 +348,241 @@ type
     }; 
 }
 //---NS type
+
+//-- User library
+namespace
+lib
+{
+	// type checking
+	using namespace type;
+	
+	template<class T,
+					std::size_t n>
+	class
+	Array
+	{
+			// Concept requirements 
+			typedef T* iter;
+			_CLASS_REQUIRES(T,SGIAssignableConcept);
+			_CLASS_REQUIRES(iter,RandomAccessIteratorConcept);
+		public:
+    	using size_type                              = std::size_t;
+    	using value_type                             = T;	
+    	using difference_type                        = std::ptrdiff_t;
+    	using reference															 = T&;
+    	using const_reference												 = const T&;    	
+    	using pointer																 = T*;
+    	using const_pointer													 = const T*;
+    	using iterator 															 = T*;
+    	using const_iterator												 = const T*;	
+    	using reverse_iterator											 = std::reverse_iterator<iterator>;
+    	using const_reverse_iterator								 = std::reverse_iterator<const_iterator>;
+
+			Array(std::initializer_list<T> lst)
+				// get memory for size elements	
+			{		
+				// copy initializer_list elements
+				M_copy(lst);
+			}    	
+    	// Iterators.
+    	iterator
+    	begin()
+    	{
+    		return iterator(std::addressof(M_instance[0])); 
+    	}
+    	iterator
+    	end()
+    	{
+    		return iterator(std::addressof(M_instance[n])); 
+    	}
+    	const_iterator
+    	begin() const
+    	{
+    		return const_iterator(std::addressof(M_instance[0])); 
+    	}
+    	const_iterator
+    	end() const
+    	{
+    		return const_iterator(std::addressof(M_instance[n])); 
+    	}    	 
+    	reverse_iterator
+    	rbegin()
+    	{
+    		return reverse_iterator(end()); 
+    	} 
+    	reverse_iterator
+    	rend()
+    	{
+    		return reverse_iterator(begin()); 
+    	} 
+    	// Capacity.
+    	constexpr 
+    	size_type
+    	size() const
+    	{
+    		return n;
+    	}
+    	constexpr 
+    	bool
+    	empty()	const
+    	{
+    		return (size() == 0);
+    	}
+    	// Element access.
+    	reference
+    	operator[](size_type sz) 
+    	{
+    		return M_instance[sz];
+    	}
+    	const_reference
+    	operator[](size_type sz) const
+    	{
+    		return M_instance[sz];
+    	}
+    	reference
+    	at(size_type p)
+    	{
+    		if (p >= n)
+    			throw;
+    		return M_instance[p];
+    	} 
+    	const_reference
+    	at(size_type p) const
+    	{
+    		if (p >= n)
+    			throw;
+    		return M_instance[p];
+    	} 
+    	reference
+    	front()
+    	{
+    		return *begin();
+    	} 
+    	const_reference
+    	front() const
+    	{
+    		return *begin();
+    	} 
+    	reference
+    	back()
+    	{
+    		return n ? *(end() - 1) : *end(); 
+    	} 
+    	const_reference
+    	back() const
+    	{
+    		return n ? *(end() - 1) : *end(); 
+    	} 
+    	pointer
+    	data()
+    	{
+    		return std::addressof(M_instance[0]);
+    	} 
+    	const_pointer
+    	data() const
+    	{
+    		return std::addressof(M_instance[0]);
+    	}
+    	void
+    	swap(Array& other)
+    	{
+    		M_swap_array(other.begin()); 
+    	} 
+    	void
+    	fill(const value_type& val)
+    	{
+    		M_fill_array(val);
+    	}    	   	     	      	    	 	   	   			
+		private:
+			// Representation 
+			// "has-a relationship"
+			// uses built-in data array type
+			// Stack memory
+			// Support for zero-sized arrays mandatory.
+			value_type M_instance[n ? n : 1];	
+			
+			// Implementation details	
+			void
+			M_swap_array(Array& other)
+			{
+    		lib_impl::swap_ranges(begin(), end(), other.begin()); 			
+			}
+			void
+			M_fill_array(const T& val)
+			{
+    		lib_impl::fill_n(begin(), size(), val);			
+			}
+			void
+			M_copy(std::initializer_list<T> l)
+			{
+				lib_impl::uninitialized_copy(l.begin(),l.end(),begin());			
+			}				
+	};
+	//---
+	// Non member functions	
+	// Comparisons.
+	template<typename T, 
+					std::size_t n>
+	inline 
+	bool
+	operator==(const Array<T, n>& lhs, 
+						const Array<T, n>& rhs)
+	{
+		return std::equal(lhs.begin(), lhs.end(), rhs.begin());
+	}
+	template<typename T, 
+					std::size_t n>
+	inline 
+	bool
+	operator!=(const Array<T, n>& lhs, 
+						const Array<T, n>& rhs)
+	{
+		return !(lhs == rhs); 
+	}	
+	template<typename T, 
+					std::size_t n>
+	inline 
+	bool
+	operator<(const Array<T, n>& lhs, 
+						const Array<T, n>& rhs)
+	{
+		return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end()); 
+	}
+	template<typename T, 
+					std::size_t n>		
+	inline 
+	bool
+	operator>(const Array<T, n>& lhs, 
+						const Array<T, n>& rhs)
+	{
+		return (rhs < lhs); 
+	}
+	template<typename T, 
+					std::size_t n>		
+	inline 
+	bool
+	operator<=(const Array<T, n>& lhs, 
+						const Array<T, n>& rhs)
+	{
+		return !(lhs > rhs);
+	}
+	template<typename T, 
+					std::size_t n>		
+	inline 
+	bool
+	operator>=(const Array<T, n>& lhs, 
+						const Array<T, n>& rhs)
+	{
+		return !(lhs < rhs);
+	}
+	template<typename T, 
+					std::size_t n>		
+	inline 
+	void
+	swap(const Array<T, n>& arr1, 
+						const Array<T, n>& arr2)
+	{
+		return arr1.swap(arr2);
+	}				
+}
+//--- NS lib
