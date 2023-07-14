@@ -2236,3 +2236,58 @@ helper
 	}
 }
 //--- User code
+//--- Driver code
+int
+main(int argc,
+		char* argv[])
+{
+	// Asynchronous task-based concurrency
+	// store exception thrown 
+  std::promise<int> prom;
+  std::future<int> fut = prom.get_future();
+
+	// thread-based concurrency
+  std::thread 
+  t(
+  	[&prom]
+		{
+		  try 
+		  {
+		  	helper::use();
+		  } 
+		  catch(...) 
+		  {
+		    try 
+		    {
+		    	// transfer an exception thrown on one thread to a handler on another thread
+		    	
+		      // store anything thrown in the promise
+		      prom.set_exception(std::current_exception());
+		      // or throw a custom exception instead
+		      // p.set_exception(std::make_exception_ptr(MyException("mine")));
+		    } 
+		    catch(...) 
+		    {
+		    	// set_exception() may throw too
+		    } 
+		  }
+		}
+  );
+  //---
+
+  try 
+  {
+  	// throws stored exception from thread
+    std::cout << fut.get();
+  } 
+  catch(const std::exception& err) 
+  {
+    std::cout << "Exception from thread: " << err.what() << '\n';
+  } 
+	// If an exception is not caught on a thread std::terminate() is called
+	catch (...) 
+	{	
+	}
+	t.join();
+	return 0;
+}
