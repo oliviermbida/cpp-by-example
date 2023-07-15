@@ -521,7 +521,10 @@ lib
     	using reverse_iterator											 = std::reverse_iterator<iterator>;
     	using const_reverse_iterator								 = std::reverse_iterator<const_iterator>;
 
-			Array(std::initializer_list<T> lst)
+			Array()
+      {
+      }
+      Array(std::initializer_list<T> lst)
 				// get memory for size elements	
 			{		
 				// copy initializer_list elements
@@ -564,6 +567,12 @@ lib
     	size() const
     	{
     		return n;
+    	}
+    	constexpr
+    	size_type
+    	max_size() const 
+    	{ 
+    		return n; 
     	}
     	constexpr 
     	bool
@@ -642,7 +651,7 @@ lib
 			// uses built-in data array type
 			// Stack memory
 			// Support for zero-sized arrays mandatory.
-			value_type M_instance[n ? n : 1];	
+			value_type M_instance[n ? n : 1]{};	
 			
 			// Implementation details	
 			void
@@ -729,12 +738,15 @@ lib
 	}				
 }
 //--- NS lib
-//-- User code
+//--- User code
 namespace
 helper
 {
 	using namespace lib;
-	
+	using Array_t 	= Array<int,5>;
+  // type checking
+	_CLASS_REQUIRES(Array_t,ContainerConcept);
+
 	template <class Itor>
 	void
 	print(Itor first, Itor last)
@@ -748,8 +760,8 @@ helper
 	void
 	use()
 	{
-		Array<int,5> arr1{2,3,5,7,9};
-		Array<int,5> arr2{1,3,5,10,15};
+		Array_t arr1{2,3,5,7,9};
+		Array_t arr2{1,3,5,10,15};
 		print(arr1.begin(),arr1.end());
 		print(arr2.begin(),arr2.end());
 		if (arr1 <= arr2)
