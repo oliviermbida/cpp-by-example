@@ -2,46 +2,50 @@
 A container holds a sequence of objects and the STL containers can be categorized into two groups:
 
 * Sequence containers provide access to (half-open) sequences of elements.
-    <vector>
-    <list>
-    <deque>
+
+    `<vector>`
+    `<list>`
+    `<deque>`
 
 * Associative containers provide associative lookup based on a key.
+
     -   Ordered
-        <map>
-        - multimap
-        <set>
-        - multiset
+        `<map>`
+        - `multimap`
+        `<set>`
+        - `multiset`
     -   Unordered
-        <unordered_map>
-        - unordered_multimap
-        <unordered_set>
-        - unordered_multiset
+        `<unordered_map>`
+        - `unordered_multimap`
+        `<unordered_set>`
+        - `unordered_multiset`
+
 These are usually implemented as Red-Black balanced trees of nodes pointing to (key,value) pairs type.
-    <stl_tree.h>
+    `<stl_tree.h>`
 
 There are also types of objects that hold elements while not offering all
 of the facilities of sequence containers or associative containers:
 
 * Container adaptors provide specialized access to underlying containers.
-    <queue>
+
+    `<queue>`
     - deque is the default container used 
-    <stack>
+    `<stack>`
     - vector is the default container used
 
 * Almost containers are sequences of elements that provide most, but not all, of the facilities
 of a container.
-    <array>
-    <string>
-    - basic_string
-    <bitset>
+    `<array>`
+    `<string>`
+    - `basic_string`
+    `<bitset>`
 
 For the purpose of this series of learning C++ by example, the focus will be on the following:
-    <array>
-    <vector>
-    <list>
-    <deque>
-    <stl_tree.h>
+    `<array>`
+    `<vector>`
+    `<list>`
+    `<deque>`
+    `<stl_tree.h>`
     
 Mastering these five ensures a good foundation for a complete understanding of the implementation details of the remaining containers and adaptors listed earlier.
 For the associative containers an understanding of the Red-Black balanced tree implementation details found in the `stl_tree.h` is essential.
