@@ -52,15 +52,15 @@ of a container.
 
 For the purpose of this series of learning C++ by example, the focus will be on the following:
 
-    `<array>`
+    <array>
 
-    `<vector>`
+    <vector>
 
-    `<list>`
+    <list>
 
-    `<deque>`
+    <deque>
 
-    `<stl_tree.h>`
+    <stl_tree.h>
 
 
 Mastering these five ensures a good foundation for a complete understanding of the implementation details of the remaining containers and adaptors listed earlier.
@@ -77,3 +77,7 @@ Notes:
 * All operations on containers provide the basic guarantee to ensure that they interact properly with exception-based error handling.
 
 * Exception-safety basic guarantee ensures the basic invariants of all objects are maintained and no resources such as memory are leaked.
+
+# Credits
+
+C++ Programming Language 4th Edition Bjarne Stroustrup §31
