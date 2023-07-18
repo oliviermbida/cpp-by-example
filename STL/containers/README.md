@@ -65,7 +65,8 @@ For the purpose of this series of learning C++ by example, the focus will be on 
 
 Mastering these five ensures a good foundation for a complete understanding of the implementation details of the remaining containers and adaptors listed earlier.
 For the associative containers an understanding of the Red-Black balanced tree implementation details found in the `stl_tree.h` is essential.
-To improve the readability of examples only code relevant to the user library shall be included in the named namespace `lib` and implementation details shall be in the named namespace `lib_impl`. Examples of usage of the user library shall be included in the named namespace `helper` with a `use` function to demonstrate various conatiner operations.
+
+To improve the readability of examples only code relevant to the user library shall be included in the named namespace `lib` and implementation details shall be in the named namespace `lib_impl`. Examples of usage of the user library shall be included in the named namespace `helper` with a `use` function to demonstrate various container operations.
 Container concept requirements details to ensure principles in the notes below are maintained shall be in the named namespace `type`.
 
 Notes:
