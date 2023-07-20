@@ -13,28 +13,50 @@
 // Usage:
 // g++ array.cpp -o test -lpthread
 
-// Type Checking
+// MISRA C++ 
+// Rule 7–3–1
+// The global namespace shall only contain 
+// main, 
+// namespace declarations 
+// and extern "C" declarations.
+// Rule 16–0–2
+// Macros shall only be #define’d or #undef’d in the global namespace.
+
+#define _IsUnused  __attribute__ ((__unused__))
+
+// Type checking
 namespace
 type
 {
-	#define _IsUnused __attribute__ ((__unused__))
-	
-	#define _CLASS_REQUIRES(_type, _concept) \
-		typedef void (_concept <_type>::* _func##_type##_concept)(); \
-		template <_func##_type##_concept _T1> \
-		struct _concept_checking##_type##_concept { }; \
-		typedef _concept_checking##_type##_concept< \
-			&_concept <_type>::__constraints> \
-			_concept_checking_typedef##_type##_concept
-				
-	template <class _Concept>
+  template <class _Concept>
 	inline 
 	void 
 	__function_requires()
 	{
 		void (_Concept::*__x)() _IsUnused = &_Concept::__constraints;
 	}	
-	
+	struct 
+	DefaultConcept
+	{
+    // MISRA C++ 
+    // Compliant Rule 2–10–2
+    // Identifiers declared in an inner scope shall not hide 
+    // an identifier declared in an outer scope.
+
+    // Every type will implement its own function within the scope of the type definition
+    static
+		void 
+		__constraints() 
+		{
+		}
+	};  
+  typedef decltype(DefaultConcept::__constraints) _func_type_concept;
+  template <_func_type_concept _Concept> 
+  struct 
+  _class_requires 
+  { 
+  }; 	
+
 	// Basic Concepts
 	template <class T>
 	struct 
@@ -497,17 +519,33 @@ namespace
 lib
 {
 	// type checking
-	using namespace type;
 	
 	template<class T,
 					std::size_t n>
 	class
 	Array
 	{
+      // MISRA C++
+      // Rule 16–0–4
+      // Function-like macros shall not be defined.
+      // used inline functions instead.
+
 			// Concept requirements 
 			typedef T* iter;
-			_CLASS_REQUIRES(T,SGIAssignableConcept);
-			_CLASS_REQUIRES(iter,RandomAccessIteratorConcept);
+      typedef Array<T,n> Array_t; 
+
+      static
+      void 
+      M_constraints() 
+      {
+        // Requirements for element type T used by Array
+        type::__function_requires< type::SGIAssignableConcept<T> >();
+        type::__function_requires< type::RandomAccessIteratorConcept<iter> >();
+        // Requirements for the container Array
+        type::__function_requires< type::ContainerConcept<Array_t> >();   
+      }
+      typedef type::_class_requires< &M_constraints > _concept_requirements;
+
 		public:
     	using size_type                              = std::size_t;
     	using value_type                             = T;	
@@ -524,6 +562,14 @@ lib
 			Array()
       {
       }
+      // AUTOSAR C++
+      // Compliant Rule A12-0-1
+      // “the rule of zero”
+      // five special member functions
+      // - copy and move constructor
+      // - copy and move assignment
+      // - destructor
+
       Array(std::initializer_list<T> lst)
 				// get memory for size elements	
 			{		
@@ -647,7 +693,11 @@ lib
     	}    	   	     	      	    	 	   	   			
 		private:
 			// Representation 
-			// "has-a relationship"
+
+      // AUTOSAR 
+      // Compliant Rule A10-0-2
+			// Membership or non-public inheritance shall be used to implement “has-a” relationship.
+
 			// uses built-in data array type
 			// Stack memory
 			// Support for zero-sized arrays mandatory.
@@ -742,11 +792,15 @@ lib
 namespace
 helper
 {
-	using namespace lib;
-	using Array_t 	= Array<int,5>;
-  // type checking
-	_CLASS_REQUIRES(Array_t,ContainerConcept);
-
+  // MISRA C++ Rule 7–3–4
+  // using-directives shall not be used
+  // exception for _CLASS_REQUIRES expansion
+	//using namespace type;
+  // compliant using-declaration
+	using Array_t 	= lib::Array<int,5>;
+ 
+  // MISRA C++ Rule 0–1–10
+  // Every defined function shall be called at least once.
 	template <class Itor>
 	void
 	print(Itor first, Itor last)
@@ -762,8 +816,10 @@ helper
 	{
 		Array_t arr1{2,3,5,7,9};
 		Array_t arr2{1,3,5,10,15};
-		print(arr1.begin(),arr1.end());
-		print(arr2.begin(),arr2.end());
+    // MISRA C++ Rule 2–10–2
+    // Identifiers declaration 
+		helper::print(arr1.begin(),arr1.end());
+		helper::print(arr2.begin(),arr2.end());
 		if (arr1 <= arr2)
 		{
 			std::cout << "arr1 <= arr2\n";
@@ -776,19 +832,37 @@ helper
 		{
 			std::cout << "arr1 not comparable to arr2\n";		
 		}
+    // "rule of zero"
+    // implicitly generated copy assignment funtion
+    arr2 = arr1;
+ 		helper::print(arr2.begin(),arr2.end());	   
 		arr1.fill(5);
-		print(arr1.begin(),arr1.end());	
-		
+		helper::print(arr1.begin(),arr1.end());	
+    // "rule of zero"
+    // implicitly generated copy constructor funtion
+    Array_t arr3(arr2);
+ 		helper::print(arr3.begin(),arr3.end());	
+    		
 		class
 		A
 		{
 			public:
 				A(){};
+        // MISRAC C++
+        // Non compliant Rule 2–7–3
+        // Sections of code should not be “commented out” using C++ comments.
+
+        // Uncomment below to test Array concept requirements
+
 				//A(const A&)=delete;
 				//A&
 				//operator=(const A&)=delete;
 		};
-		Array<A,1> test{};	
+
+    // MISRA C++ Rule 0–1–11
+    // unused variables    
+		lib::Array<A,1> test{};	
+    static_cast<void>(test);
 		throw std::runtime_error("Array::use() error");
 	}
 }
@@ -798,6 +872,10 @@ int
 main(int argc,
 		char* argv[])
 {
+  // MISRA C++ Rule 0–1–11
+  // There shall be no unused named parameters 
+  static_cast<void>(argc);
+  static_cast<void>(argv);
 	// Asynchronous task-based concurrency
 	// store exception thrown 
   std::promise<int> prom;
