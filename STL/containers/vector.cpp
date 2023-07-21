@@ -34,9 +34,19 @@ lib_impl
 //--- NS lib_impl
 
 // Global scope
+
+// MISRA C++ 
+// Rule 7–3–1
+// The global namespace shall only contain 
+// main, 
+// namespace declarations 
+// and extern "C" declarations.
+// Rule 16–0–2
+// Macros shall only be #define’d or #undef’d in the global namespace.
+#define _IsUnused __attribute__ ((__unused__))
+
 // The program is ill-formed if a replacement is defined in namespace other than global namespace,
 // or if it is defined as a static non-member function at global scope. 
-
 // no inline, required by [replacement.functions]
 void* 
 operator 
@@ -109,17 +119,45 @@ noexcept
 //---Type checking
 namespace
 type
-{
-	#define _IsUnused __attribute__ ((__unused__))
-	
-	#define _CLASS_REQUIRES(_type, _concept) \
-		typedef void (_concept <_type>::* _func##_type##_concept)(); \
-		template <_func##_type##_concept _T1> \
-		struct _concept_checking##_type##_concept { }; \
-		typedef _concept_checking##_type##_concept< \
-			&_concept <_type>::__constraints> \
-			_concept_checking_typedef##_type##_concept
-				
+{			
+	// Iterator
+	struct input_iterator_tag { };
+	struct output_iterator_tag { };
+	struct forward_iterator_tag : public input_iterator_tag { };
+	struct bidirectional_iterator_tag : public forward_iterator_tag { };
+	struct random_access_iterator_tag : public bidirectional_iterator_tag { };
+		
+	template <typename Iterator>
+	struct 
+	Iterator_traits	
+	{
+		typedef typename Iterator::iterator_category iterator_category;
+		typedef typename Iterator::value_type        value_type;
+		typedef typename Iterator::difference_type   difference_type;
+		typedef typename Iterator::pointer           pointer;
+		typedef typename Iterator::reference         reference;
+	};
+	template <typename T>
+	struct 
+	Iterator_traits<T*>	
+	{
+		typedef random_access_iterator_tag					 iterator_category;
+		typedef T															       value_type;
+		typedef std::ptrdiff_t										   difference_type;
+		typedef T*												           pointer;
+		typedef T&													         reference;
+	};
+	template <typename T>
+	struct 
+	Iterator_traits<const T*>	
+	{
+		typedef random_access_iterator_tag					 iterator_category;
+		typedef T															       value_type;
+		typedef std::ptrdiff_t										   difference_type;
+		typedef const T*									           pointer;
+		typedef const T&										         reference;
+	};				
+  //---
 	template <class _Concept>
 	inline 
 	void 
@@ -127,6 +165,27 @@ type
 	{
 		void (_Concept::*__x)() _IsUnused = &_Concept::__constraints;
 	}	
+	struct 
+	DefaultConcept
+	{
+    // MISRA C++ 
+    // Compliant Rule 2–10–2
+    // Identifiers declared in an inner scope shall not hide 
+    // an identifier declared in an outer scope.
+
+    // Every type will implement its own function within the scope of the type definition
+    static
+		void 
+		__constraints() 
+		{
+		}
+	};  
+  typedef decltype(DefaultConcept::__constraints) _func_type_concept;
+  template <_func_type_concept _Concept> 
+  struct 
+  _class_requires 
+  { 
+  }; 	
 	
 	// Basic Concepts
 	template <class T>
@@ -234,7 +293,23 @@ type
 		}
 		T __a;
 		T __b;
-	};			
+	};	
+  // This is equivalent to SGI STL's LessThanComparable.
+	template <class T>
+	struct 
+	ComparableConcept
+	{
+		void 
+		__constraints() 
+		{
+			__aux_require_boolean_expr(__a < __b);
+			__aux_require_boolean_expr(__a > __b);
+			__aux_require_boolean_expr(__a <= __b);
+			__aux_require_boolean_expr(__a >= __b);
+		}
+		T __a;
+		T __b;
+	};  		
 	// Iterator Concepts
 	template <class T>
 	struct 
@@ -263,8 +338,8 @@ type
 			typedef typename std::iterator_traits<T>::pointer _Pt;
 			typedef typename std::iterator_traits<T>::iterator_category _Cat;
 			__function_requires< ConvertibleConcept<
-																							typename std::iterator_traits<T>::iterator_category,
-																							std::input_iterator_tag> >();
+																							typename type::Iterator_traits<T>::iterator_category,
+																							type::input_iterator_tag> >();
 			// requires pre-increment operator
 			++__i; 
 			// requires post-increment operator                           
@@ -282,13 +357,63 @@ type
 			__function_requires< InputIteratorConcept<T> >();
 			__function_requires< DefaultConstructibleConcept<T> >();
 			__function_requires< ConvertibleConcept<
-																							typename std::iterator_traits<T>::iterator_category,
-																							std::forward_iterator_tag> >();
+																							typename type::Iterator_traits<T>::iterator_category,
+																							type::forward_iterator_tag> >();
 			typedef typename std::iterator_traits<T>::reference _Ref;
 			_Ref __r _IsUnused = *__i;
 		}
 		T __i;
 	};	
+ 	template <class T>
+	struct 
+	BidirectionalIteratorConcept
+	{
+		void 
+		__constraints() 
+		{
+				__function_requires< ForwardIteratorConcept<T> >();
+				__function_requires< ConvertibleConcept<
+																					      typename type::Iterator_traits<T>::iterator_category,
+																					      type::bidirectional_iterator_tag> >();
+				// requires pre-decrement operator
+				--__i; 
+				// requires post-decrement operator                           
+				__i--;                            
+			}
+			T __i;
+	}; 
+	template <class T>
+	struct 
+	RandomAccessIteratorConcept
+	{
+		void __constraints() 
+		{
+			__function_requires< BidirectionalIteratorConcept<T> >();
+			__function_requires< ComparableConcept<T> >();
+			__function_requires< ConvertibleConcept<
+																			        typename type::Iterator_traits<T>::iterator_category,
+																			        type::random_access_iterator_tag> >();
+			typedef typename type::Iterator_traits<T>::reference _Ref;
+
+			// requires assignment addition operator
+			__i += __n;
+			// requires addition with difference type                       
+			__i = __i + __n; __i = __n + __i; 
+			// requires assignment subtraction op
+			__i -= __n;
+			// requires subtraction with difference type                    
+			__i = __i - __n;                  
+			// requires difference operator			                         
+			__n = __i - __j; 
+			// requires element access operator                 
+			static_cast<void>(__i[__n]);                   
+		}
+		T __a;
+		T __b;
+		T __i;
+		T __j;
+		typename type::Iterator_traits<T>::difference_type __n;
+	};  
 	// Container Concepts
 	template <class _Container>
 	struct 
@@ -387,7 +512,7 @@ lib_impl
 	destroy(InputIt first, 
 					InputIt last)	
 	{
-	  using T = typename std::iterator_traits<InputIt>::value_type;	
+	  using T = typename type::Iterator_traits<InputIt>::value_type;	
 		for (; first!=last; ++first)
 			first->~T();
 	}
@@ -400,7 +525,7 @@ lib_impl
 		          				ForwardIterator result)
 	{
 		ForwardIterator curr = result;
-		using Type = typename std::iterator_traits<ForwardIterator>::value_type;
+		using Type = typename type::Iterator_traits<ForwardIterator>::value_type;
 		try
 	 	{
 			for (; n > 0; --n, ++first, ++curr)
@@ -560,7 +685,7 @@ lib_impl
 			construct( pointer p, 
 								const_reference val )
 			{
-				using Type = typename std::iterator_traits<pointer>::value_type;
+				using Type = typename type::Iterator_traits<pointer>::value_type;
 				::new( static_cast<void*>(std::addressof(*p)) ) Type(val);
 			}
 			template <typename... Args>
@@ -568,7 +693,7 @@ lib_impl
 			construct(pointer p, 
 									Args&&... args)
 			{
-				using Type = typename std::iterator_traits<pointer>::value_type;			
+				using Type = typename type::Iterator_traits<pointer>::value_type;			
 				::new( static_cast<void*>(std::addressof(*p)) ) Type(std::forward<Args>(args)...);
 			}
 			void
@@ -630,50 +755,13 @@ lib_impl
 	
 	//---	
 	
-	// Iterator
-	struct input_iterator_tag { };
-	struct output_iterator_tag { };
-	struct forward_iterator_tag : public input_iterator_tag { };
-	struct bidirectional_iterator_tag : public forward_iterator_tag { };
-	struct random_access_iterator_tag : public bidirectional_iterator_tag { };
-		
-	template <typename Iterator>
-	struct 
-	Iterator_traits	
-	{
-		typedef typename Iterator::iterator_category iterator_category;
-		typedef typename Iterator::value_type        value_type;
-		typedef typename Iterator::difference_type   difference_type;
-		typedef typename Iterator::pointer           pointer;
-		typedef typename Iterator::reference         reference;
-	};
-	template <typename T>
-	struct 
-	Iterator_traits<T*>	
-	{
-		typedef random_access_iterator_tag					 iterator_category;
-		typedef T															       value_type;
-		typedef std::ptrdiff_t										   difference_type;
-		typedef T*												           pointer;
-		typedef T&													         reference;
-	};
-	template <typename T>
-	struct 
-	Iterator_traits<const T*>	
-	{
-		typedef random_access_iterator_tag					 iterator_category;
-		typedef T															       value_type;
-		typedef std::ptrdiff_t										   difference_type;
-		typedef const T*									           pointer;
-		typedef const T&										         reference;
-	};				
-		// Normal iterator	
+	// Normal iterator	
 	template <typename Iter,
 						typename Container>
 	class
 	Normal_iterator
 	{
-			typedef Iterator_traits<Iter>       Traits_type;
+			typedef type::Iterator_traits<Iter>       Traits_type;
 			template <typename It>
 			using container_type_enable_if					= typename std::enable_if<(std::is_same<It,
 																									typename Container::pointer>::value),
@@ -686,7 +774,11 @@ lib_impl
 			using reference													= typename Traits_type::reference;
 			using pointer														= typename Traits_type::pointer;	
 			
-			constexpr
+			Normal_iterator()
+        : M_curr()
+      {
+      }
+      constexpr
 			Normal_iterator(const iterator_type& it) 
 				: M_curr(it) 
 			{ 
@@ -816,6 +908,89 @@ lib_impl
 		return  (!(lhs == rhs));
 	}
 	// Random access iterator requirements	
+	template <typename IteratorL, 
+							typename IteratorR, 
+							typename Container>
+	inline 
+	bool
+	operator<(const Normal_iterator<IteratorL, Container>& lhs,
+							const Normal_iterator<IteratorR, Container>& rhs)
+	{ 
+		return lhs.base() < rhs.base(); 
+	}
+
+	template <typename Iterator, 
+							typename Container>
+	inline 
+	bool
+	operator<(const Normal_iterator<Iterator, Container>& lhs,
+							const Normal_iterator<Iterator, Container>& rhs)
+	{ 
+		return lhs.base() < rhs.base(); 
+	}
+
+	template <typename IteratorL, 
+							typename IteratorR, 
+							typename Container>
+	inline 
+	bool
+	operator>(const Normal_iterator<IteratorL, Container>& lhs,
+							const Normal_iterator<IteratorR, Container>& rhs)
+	{ 
+		return lhs.base() > rhs.base(); 
+	}
+
+	template <typename Iterator, 
+							typename Container>
+	inline 
+	bool
+	operator>(const Normal_iterator<Iterator, Container>& lhs,
+							const Normal_iterator<Iterator, Container>& rhs)
+	{ 
+		return lhs.base() > rhs.base(); 
+	}
+
+	template <typename IteratorL, 
+							typename IteratorR, 
+							typename Container>
+	inline 
+	bool
+	operator<=(const Normal_iterator<IteratorL, Container>& lhs,
+							const Normal_iterator<IteratorR, Container>& rhs)
+	{ 
+		return lhs.base() <= rhs.base(); 
+	}
+
+	template <typename Iterator, 
+							typename Container>
+	inline 
+	bool
+	operator<=(const Normal_iterator<Iterator, Container>& lhs,
+							const Normal_iterator<Iterator, Container>& rhs)
+	{ 
+		return lhs.base() <= rhs.base(); 
+	}
+
+	template <typename IteratorL, 
+							typename IteratorR, 
+							typename Container>
+	inline 
+	bool
+	operator>=(const Normal_iterator<IteratorL, Container>& lhs,
+							const Normal_iterator<IteratorR, Container>& rhs)
+	{ 
+		return lhs.base() >= rhs.base(); 
+	}
+
+	template <typename Iterator, 
+							typename Container>
+	inline 
+	bool
+	operator>=(const Normal_iterator<Iterator, Container>& lhs,
+							const Normal_iterator<Iterator, Container>& rhs)
+	{ 
+		return lhs.base() >= rhs.base(); 
+	}
 	
 	//
 	template <typename IteratorL, 
@@ -852,7 +1027,7 @@ lib_impl
 	class
 	Reverse_iterator
 	{
-			typedef Iterator_traits<Iter>       Traits_type;	
+			typedef type::Iterator_traits<Iter>       Traits_type;	
 		public:
 			using iterator_type											= Iter;		
 			using iterator_category									= typename Traits_type::iterator_category;
@@ -1018,7 +1193,7 @@ lib_impl
 	noexcept(false)
 	{
 		typedef 
-		typename Iterator_traits<InputIterator>::value_type
+		typename type::Iterator_traits<InputIterator>::value_type
 		ValueType;
 		
 		InputIterator current = first;
@@ -1171,8 +1346,11 @@ lib_impl
 namespace
 lib
 {
-	using namespace type;
-	
+  // MISRA C++
+  // Compliant Rule 7–3–4 and Rule 7–3–6
+  // using-directives and using-declarations shall not be used
+  // (excluding class scope or function scope using-declarations)
+
 	// Vector Base
 	// Memory management
 	// Nothing construct or destroy T elements
@@ -1301,17 +1479,36 @@ lib
 		: protected Vector_base<T, A>
 	{			
 		// Private implementation details
-		using Alloc_value_type					= typename A::value_type; 
-		using Base											= Vector_base<T, A>;
-		using T_alloc_type							= typename Base::T_alloc_type;
-		template <typename U>
-		using Iter											= lib_impl::Normal_iterator<U,Vector>;
-		template <typename U>
-		using Reverse_iter							= lib_impl::Reverse_iterator<U>;	
+      using Alloc_value_type					= typename A::value_type; 
+      using Base											= Vector_base<T, A>;
+      using T_alloc_type							= typename Base::T_alloc_type;
+      template <typename U>
+      using Iter											= lib_impl::Normal_iterator<U,Vector>;
+      template <typename U>
+      using Reverse_iter							= lib_impl::Reverse_iterator<U>;	
 		
 		// Concept requirements 
-		_CLASS_REQUIRES(T,SGIAssignableConcept);	
-							
+      // MISRA C++
+      // Rule 16–0–4
+      // Function-like macros shall not be defined.
+      // used inline functions instead for safer type checking of parameters.
+
+			// Concept requirements 
+			typedef Iter<typename T_alloc_type::pointer> iter;
+      typedef Vector<T,A> Vector_t; 
+        // Member functions of a local class are implicitly inline functions.
+      static
+      void 
+      M_constraints() 
+      {
+        // Requirements for element type T used by Vector
+        type::__function_requires< type::SGIAssignableConcept<T> >();
+        type::__function_requires< type::RandomAccessIteratorConcept<iter> >();
+        // Requirements for the container Vector
+        type::__function_requires< type::ContainerConcept<Vector_t> >();   
+      }
+      typedef type::_class_requires< &M_constraints > _concept_requirements;	
+
 		public:
 			using value_type							= T;
 			using pointer									= typename T_alloc_type::pointer;
@@ -1349,7 +1546,13 @@ lib
 				: Vector(n, value_type(0), allocator_type())
 			{
 			}
-			// "rule of five" special functions
+      // AUTOSAR C++
+      // Compliant Rule A12-0-1
+      // “the rule of five”
+      // five special member functions
+      // - copy and move constructor
+      // - copy and move assignment
+      // - destructor
 			Vector(const Vector& other)	
 				: Base(other.size(), other.M_get_T_allocator())	
 			{
