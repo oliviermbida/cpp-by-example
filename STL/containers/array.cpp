@@ -27,8 +27,46 @@
 // Type checking
 namespace
 type
-{
-  template <class _Concept>
+{			
+	// Iterator
+	struct input_iterator_tag { };
+	struct output_iterator_tag { };
+	struct forward_iterator_tag : public input_iterator_tag { };
+	struct bidirectional_iterator_tag : public forward_iterator_tag { };
+	struct random_access_iterator_tag : public bidirectional_iterator_tag { };
+		
+	template <typename Iterator>
+	struct 
+	Iterator_traits	
+	{
+		typedef typename Iterator::iterator_category iterator_category;
+		typedef typename Iterator::value_type        value_type;
+		typedef typename Iterator::difference_type   difference_type;
+		typedef typename Iterator::pointer           pointer;
+		typedef typename Iterator::reference         reference;
+	};
+	template <typename T>
+	struct 
+	Iterator_traits<T*>	
+	{
+		typedef random_access_iterator_tag					 iterator_category;
+		typedef T															       value_type;
+		typedef std::ptrdiff_t										   difference_type;
+		typedef T*												           pointer;
+		typedef T&													         reference;
+	};
+	template <typename T>
+	struct 
+	Iterator_traits<const T*>	
+	{
+		typedef random_access_iterator_tag					 iterator_category;
+		typedef T															       value_type;
+		typedef std::ptrdiff_t										   difference_type;
+		typedef const T*									           pointer;
+		typedef const T&										         reference;
+	};				
+  //---
+	template <class _Concept>
 	inline 
 	void 
 	__function_requires()
@@ -56,7 +94,7 @@ type
   _class_requires 
   { 
   }; 	
-
+	
 	// Basic Concepts
 	template <class T>
 	struct 
@@ -163,7 +201,8 @@ type
 		}
 		T __a;
 		T __b;
-	};
+	};	
+  // This is equivalent to SGI STL's LessThanComparable.
 	template <class T>
 	struct 
 	ComparableConcept
@@ -178,8 +217,7 @@ type
 		}
 		T __a;
 		T __b;
-	};
-				
+	};  		
 	// Iterator Concepts
 	template <class T>
 	struct 
@@ -208,8 +246,8 @@ type
 			typedef typename std::iterator_traits<T>::pointer _Pt;
 			typedef typename std::iterator_traits<T>::iterator_category _Cat;
 			__function_requires< ConvertibleConcept<
-																							typename std::iterator_traits<T>::iterator_category,
-																							std::input_iterator_tag> >();
+																							typename type::Iterator_traits<T>::iterator_category,
+																							type::input_iterator_tag> >();
 			// requires pre-increment operator
 			++__i; 
 			// requires post-increment operator                           
@@ -227,63 +265,63 @@ type
 			__function_requires< InputIteratorConcept<T> >();
 			__function_requires< DefaultConstructibleConcept<T> >();
 			__function_requires< ConvertibleConcept<
-																							typename std::iterator_traits<T>::iterator_category,
-																							std::forward_iterator_tag> >();
+																							typename type::Iterator_traits<T>::iterator_category,
+																							type::forward_iterator_tag> >();
 			typedef typename std::iterator_traits<T>::reference _Ref;
 			_Ref __r _IsUnused = *__i;
 		}
 		T __i;
-	};
-	template <class T>
+	};	
+ 	template <class T>
 	struct 
 	BidirectionalIteratorConcept
 	{
 		void 
 		__constraints() 
 		{
-			__function_requires< ForwardIteratorConcept<T> >();
-			__function_requires< ConvertibleConcept<
-																								typename std::iterator_traits<T>::iterator_category,
-																								std::bidirectional_iterator_tag> >();
-			// requires pre-decrement operator
-			--__i; 
-			// requires post-decrement operator                           
-			__i--;                            
-		}
-		T __i;
-	};	
+				__function_requires< ForwardIteratorConcept<T> >();
+				__function_requires< ConvertibleConcept<
+																					      typename type::Iterator_traits<T>::iterator_category,
+																					      type::bidirectional_iterator_tag> >();
+				// requires pre-decrement operator
+				--__i; 
+				// requires post-decrement operator                           
+				__i--;                            
+			}
+			T __i;
+	}; 
 	template <class T>
 	struct 
 	RandomAccessIteratorConcept
 	{
-		void 
-		__constraints() 
+		void __constraints() 
 		{
 			__function_requires< BidirectionalIteratorConcept<T> >();
 			__function_requires< ComparableConcept<T> >();
 			__function_requires< ConvertibleConcept<
-																								typename std::iterator_traits<T>::iterator_category,
-																								std::random_access_iterator_tag> >();
-			typedef typename std::iterator_traits<T>::reference _Ref;
+																			        typename type::Iterator_traits<T>::iterator_category,
+																			        type::random_access_iterator_tag> >();
+			typedef typename type::Iterator_traits<T>::reference _Ref;
+
 			// requires assignment addition operator
 			__i += __n;
 			// requires addition with difference type                       
 			__i = __i + __n; __i = __n + __i; 
 			// requires assignment subtraction op
-			__i -= __n; 
-			// requires subtraction with difference type                      
+			__i -= __n;
+			// requires subtraction with difference type                    
 			__i = __i - __n;                  
-			// requires difference operator			                       
+			// requires difference operator			                         
 			__n = __i - __j; 
 			// requires element access operator                 
-			(void)__i[__n];                   
+			static_cast<void>(__i[__n]);                   
 		}
 		T __a;
 		T __b;
 		T __i;
 		T __j;
-		typename std::iterator_traits<T>::difference_type __n;
-	};		
+		typename type::Iterator_traits<T>::difference_type __n;
+	};  
 	// Container Concepts
 	template <class _Container>
 	struct 
@@ -328,6 +366,9 @@ type
 		  	return value; 
 		  }
 #if __cplusplus > 201103L
+
+//#define __cpp_lib_integral_constant_callable 201304L
+
 		  constexpr 
 		  value_type 
 		  operator()() const 
@@ -528,12 +569,12 @@ lib
       // MISRA C++
       // Rule 16–0–4
       // Function-like macros shall not be defined.
-      // used inline functions instead.
+      // used inline functions instead for safer type checking of parameters.
 
 			// Concept requirements 
 			typedef T* iter;
       typedef Array<T,n> Array_t; 
-
+        // Member functions of a local class are implicitly inline functions.
       static
       void 
       M_constraints() 
@@ -833,13 +874,13 @@ helper
 			std::cout << "arr1 not comparable to arr2\n";		
 		}
     // "rule of zero"
-    // implicitly generated copy assignment funtion
+    // implicitly generated copy assignment function
     arr2 = arr1;
  		helper::print(arr2.begin(),arr2.end());	   
 		arr1.fill(5);
 		helper::print(arr1.begin(),arr1.end());	
     // "rule of zero"
-    // implicitly generated copy constructor funtion
+    // implicitly generated copy constructor function
     Array_t arr3(arr2);
  		helper::print(arr3.begin(),arr3.end());	
     		
