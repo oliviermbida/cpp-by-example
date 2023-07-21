@@ -453,7 +453,7 @@ lib_impl
 										NoThrowForwardIt d_first)
 	noexcept(false)
 	{
-	  using T = typename std::iterator_traits<NoThrowForwardIt>::value_type;
+	  using T = typename type::Iterator_traits<NoThrowForwardIt>::value_type;
 	  NoThrowForwardIt current = d_first;
 	  try 
 	  {
@@ -498,7 +498,7 @@ lib_impl
 		swap(Iter1 a, 
 								Iter2 b)
 		{
-			typedef typename std::iterator_traits<Iter1>::value_type
+			typedef typename type::Iterator_traits<Iter1>::value_type
 			ValueType1;
 			ValueType1 tmp = std::move(*a);
 			*a = std::move(*b);
@@ -525,14 +525,14 @@ lib_impl
 	void
 	iter_swap(Iter1 a, Iter2 b)
 	{
-		typedef typename std::iterator_traits<Iter1>::value_type
+		typedef typename type::Iterator_traits<Iter1>::value_type
 		ValueType1;
-		typedef typename std::iterator_traits<Iter2>::value_type
+		typedef typename type::Iterator_traits<Iter2>::value_type
 		ValueType2;
 
-		typedef typename std::iterator_traits<Iter1>::reference
+		typedef typename type::Iterator_traits<Iter1>::reference
 		ReferenceType1;
-		typedef typename std::iterator_traits<Iter2>::reference
+		typedef typename type::Iterator_traits<Iter2>::reference
 		ReferenceType2;
 		
 		iter_s <type::is_same<ValueType1, ValueType2>::value
