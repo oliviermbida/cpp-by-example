@@ -442,7 +442,39 @@ type
 		_Const_iterator __i;
 		_Size_type __n;
 	};		 
-   
+  template <class ForwardContainer> 
+  struct 
+  ForwardContainerConcept
+  {
+    void 
+    __constraints() 
+    {
+      __function_requires< ContainerConcept<ForwardContainer> >();
+      typedef typename ForwardContainer::const_iterator Const_iterator;
+      __function_requires< ForwardIteratorConcept<Const_iterator> >();
+    }
+  };
+  template <class ReversibleContainer>
+  struct 
+  ReversibleContainerConcept
+  {
+    typedef typename ReversibleContainer::const_iterator Const_iterator;
+    typedef typename ReversibleContainer::const_reverse_iterator
+    Const_reverse_iterator;
+
+    void 
+    __constraints() 
+    {
+      __function_requires< ForwardContainerConcept<ReversibleContainer> >();
+      __function_requires< BidirectionalIteratorConcept<Const_iterator> >();
+      __function_requires<
+                          BidirectionalIteratorConcept<Const_reverse_iterator> >();
+
+      const ReversibleContainer __c;
+      Const_reverse_iterator __i = __c.rbegin();
+      __i = __c.rend();
+    }
+  };  
   // integral_constant
   template<typename _Tp, _Tp __v>
   class 
@@ -1506,6 +1538,8 @@ lib
         type::__function_requires< type::RandomAccessIteratorConcept<iter> >();
         // Requirements for the container Vector
         type::__function_requires< type::ContainerConcept<Vector_t> >();   
+        type::__function_requires< type::ReversibleContainerConcept<Vector_t> >();   
+
       }
       typedef type::_class_requires< &M_constraints > _concept_requirements;	
 
