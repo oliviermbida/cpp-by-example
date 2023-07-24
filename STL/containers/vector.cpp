@@ -364,6 +364,19 @@ type
 		}
 		T __i;
 	};	
+  template <class T>
+  struct 
+  Mutable_ForwardIteratorConcept
+  {
+    void 
+    __constraints() 
+    {
+      __function_requires< ForwardIteratorConcept<T> >();
+      // requires post-increment and assignment
+      *__i++ = *__i;                    
+    }
+    T __i;
+  };  
  	template <class T>
 	struct 
 	BidirectionalIteratorConcept
@@ -441,7 +454,31 @@ type
 		bool __b;
 		_Const_iterator __i;
 		_Size_type __n;
-	};		 
+	};	
+  template <class Container>
+  struct 
+  Mutable_ContainerConcept
+  {
+    typedef typename Container::value_type Value_type;
+    typedef typename Container::reference Reference;
+    typedef typename Container::iterator Iterator;
+    typedef typename Container::pointer Pointer;
+
+    void 
+    __constraints() 
+    {
+      __function_requires< ContainerConcept<Container> >();
+      __function_requires< AssignableConcept<Value_type> >();
+      __function_requires< InputIteratorConcept<Iterator> >();
+
+      __i = __c.begin();
+      __i = __c.end();
+      __c.swap(__c2);
+    }
+    Iterator __i;
+    Container __c;
+    Container __c2;
+  };  	 
   template <class ForwardContainer> 
   struct 
   ForwardContainerConcept
@@ -454,6 +491,19 @@ type
       __function_requires< ForwardIteratorConcept<Const_iterator> >();
     }
   };
+  template <class ForwardContainer>
+  struct 
+  Mutable_ForwardContainerConcept
+  {
+    void 
+    __constraints() 
+    {
+      __function_requires< ForwardContainerConcept<ForwardContainer> >();
+      __function_requires< Mutable_ContainerConcept<ForwardContainer> >();
+      typedef typename ForwardContainer::iterator Iterator;
+      __function_requires< Mutable_ForwardIteratorConcept<Iterator> >();
+    }
+  };  
   template <class ReversibleContainer>
   struct 
   ReversibleContainerConcept
@@ -474,7 +524,46 @@ type
       Const_reverse_iterator __i = __c.rbegin();
       __i = __c.rend();
     }
-  };  
+  }; 
+  // A Sequence is inherently mutable
+  template <class Sequence>
+  struct 
+  SequenceConcept
+  {
+    typedef typename Sequence::reference Reference;
+    typedef typename Sequence::const_reference Const_reference;
+
+    void 
+    __constraints() 
+    {
+      __function_requires< Mutable_ForwardContainerConcept<Sequence> >();
+
+      Sequence __c _IsUnused(__n, __t);
+      Sequence __c2 _IsUnused(__first, __last);
+
+      __c.insert(__p, __t);
+      __c.insert(__p, __n, __t);
+      __c.insert(__p, __first, __last);
+
+      __c.erase(__p);
+      __c.erase(__p, __q);
+
+      Reference __r _IsUnused = __c.front();
+
+      __const_constraints(__c);
+    }
+    void 
+    __const_constraints(const Sequence& __c) 
+    {
+      Const_reference __r _IsUnused = __c.front();
+    }
+    typename Sequence::value_type __t;
+    typename Sequence::size_type __n;
+    typename Sequence::value_type* __first;
+    typename Sequence::value_type* __last;
+    typename Sequence::iterator __p;
+    typename Sequence::iterator __q;
+  };   
   // integral_constant
   template<typename _Tp, _Tp __v>
   class 
@@ -1539,9 +1628,10 @@ lib
         // Requirements for the container Vector
         type::__function_requires< type::ContainerConcept<Vector_t> >();   
         type::__function_requires< type::ReversibleContainerConcept<Vector_t> >();   
+        type::__function_requires< type::SequenceConcept<Vector_t> >();   
 
       }
-      typedef type::_class_requires< &M_constraints > _concept_requirements;	
+      typedef type::_class_requires< &M_constraints > _concept_requirements_t;	
 
 		public:
 			using value_type							= T;
@@ -1580,6 +1670,15 @@ lib
 				: Vector(n, value_type(0), allocator_type())
 			{
 			}
+      template < class InputIt >
+      Vector(InputIt first, 
+              InputIt last,
+              const A& alloc = allocator_type())
+        : Base(alloc)
+      {
+        typedef typename std::is_integral<InputIt>::type Integral;
+        M_initialize_dispatch(first, last, Integral());
+      }
       // AUTOSAR C++
       // Compliant Rule A12-0-1
       // “the rule of five”
@@ -2046,6 +2145,50 @@ lib
 					throw std::runtime_error{"Vector::M_range_check"};
 				}
 			}
+      template <typename Integer>
+      void
+      M_initialize_dispatch(Integer n, 
+                              Integer value, 
+                              std::integral_constant<bool, true>)
+      {
+        this->M_impl.M_start = M_allocate(static_cast<size_type>(n));
+        this->M_impl.M_end = this->M_impl.M_start + static_cast<size_type>(n);
+        M_fill_initialize(static_cast<size_type>(n),value);
+      }
+
+      template <typename InputIt>
+      void
+      M_initialize_dispatch(InputIt first, 
+                              InputIt last,
+                              std::integral_constant<bool, false>)
+      {
+        typedef typename type::Iterator_traits<InputIt>::iterator_category 
+        IterCategory;
+        M_range_initialize(first, last, IterCategory());
+      } 
+      template <typename InputIt>
+      void
+      M_range_initialize(InputIt first,
+                          InputIt last, 
+                          type::input_iterator_tag)
+      {
+        for (; first != last; ++first)
+        {
+          push_back(*first);
+        }
+      }
+
+      template<typename ForwardIt>
+      void
+      M_range_initialize(ForwardIt first,
+                          ForwardIt last, 
+                          type::forward_iterator_tag)
+      {
+        const size_type n = std::distance(first, last);
+        this->M_impl.M_start = this->M_allocate(n);
+        this->M_impl.M_end = this->M_impl.M_start + n;
+        this->M_impl.M_finish = M_copy_initialize(first, last, this->M_impl.M_start);
+      }           
 	};
 	template <typename T,
 						typename A>
