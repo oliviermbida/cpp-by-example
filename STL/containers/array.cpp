@@ -321,7 +321,7 @@ type
 		T __i;
 		T __j;
 		typename type::Iterator_traits<T>::difference_type __n;
-	};  
+	}; 
 	// Container Concepts
 	template <class _Container>
 	struct 
@@ -338,6 +338,8 @@ type
 		__constraints() 
 		{
 			__function_requires< InputIteratorConcept<_Const_iterator> >();
+			__function_requires< DefaultConstructibleConcept<_Container> >();
+			__function_requires< CopyConstructibleConcept<_Container> >();      
 			__function_requires< AssignableConcept<_Container> >();
 			const _Container __c;
 			__i = __c.begin();
