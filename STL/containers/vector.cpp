@@ -528,7 +528,7 @@ type
   // A Sequence is inherently mutable
   template <class Sequence>
   struct 
-  SequenceConcept
+  SequenceContainerConcept
   {
     typedef typename Sequence::reference Reference;
     typedef typename Sequence::const_reference Const_reference;
@@ -1628,7 +1628,7 @@ lib
         // Requirements for the container Vector
         type::__function_requires< type::ContainerConcept<Vector_t> >();   
         type::__function_requires< type::ReversibleContainerConcept<Vector_t> >();   
-        type::__function_requires< type::SequenceConcept<Vector_t> >();   
+        type::__function_requires< type::SequenceContainerConcept<Vector_t> >();   
 
       }
       typedef type::_class_requires< &M_constraints > _concept_requirements_t;	
