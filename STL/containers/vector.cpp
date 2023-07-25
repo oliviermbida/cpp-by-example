@@ -595,7 +595,32 @@ type
     typename Sequence::value_type* __last;
     typename Sequence::iterator __p;
     typename Sequence::iterator __q;
-  };   
+  }; 
+	template <class Container>
+	struct 
+	AllocatorAwareContainerConcept
+	{
+		typedef typename Container::value_type Value_type;
+    typedef typename Container::allocator_type Allocator;
+
+		void 
+		__constraints() 
+		{
+      // C++ standard requirements
+			__function_requires< ConvertibleConcept<
+																							typename Allocator::value_type,
+																							Value_type> >();      
+			__function_requires< Mutable_ForwardContainerConcept<Container> >();  
+
+      Container __a(__m); 
+      Container __b(__t,__m);
+      Container __u(Container(),__m);
+		}
+    const Container __t;
+    Allocator __m;
+
+	};	
+
   // integral_constant
   template<typename _Tp, _Tp __v>
   class 
@@ -1658,7 +1683,8 @@ lib
         type::__function_requires< type::SGIAssignableConcept<T> >();
         type::__function_requires< type::RandomAccessIteratorConcept<iter> >();
         // Requirements for the container Vector
-        type::__function_requires< type::ContainerConcept<Vector_t> >();   
+        type::__function_requires< type::ContainerConcept<Vector_t> >(); 
+        type::__function_requires< type::AllocatorAwareContainerConcept<Vector_t> >(); 
         type::__function_requires< type::ReversibleContainerConcept<Vector_t> >();   
         type::__function_requires< type::SequenceContainerConcept<Vector_t> >();   
 
@@ -1678,7 +1704,7 @@ lib
 			using size_type								= std::size_t;
 			using difference_type					= std::ptrdiff_t;
 			using allocator_type					= A;
-	
+
 			explicit
 			Vector(size_type n, 
 							const value_type& val = value_type(),
@@ -1741,6 +1767,16 @@ lib
 			~Vector()
 			{
 				M_destroy(this->M_impl.M_start, this->M_impl.M_finish);
+			}
+      //
+      Vector(const Vector& other, 
+              const A& alloc)
+				: Base(other.size(), alloc)	
+			{
+				this->M_impl.M_finish = lib_impl::uninitialized_copy_a(other.begin(), 
+																										            other.end(), 
+																										            this->M_impl.M_start,
+                                                                alloc);
 			}
 			Vector(lib_impl::initializer_list<value_type> l)
 				: Base(l.size())
