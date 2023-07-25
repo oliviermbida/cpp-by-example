@@ -208,6 +208,8 @@ type
 		{
 			// requires copy constructor
 			 T __a(__b);  
+      // prvalue expression of type T 
+       T __m(T());
 			// requires address of operator                   
 			 T* __ptr _IsUnused = &__a;      
 			 __const_constraints(__a);
@@ -229,8 +231,11 @@ type
 		void 
 		__constraints() 
 		{
+      // Copy and move 
 			// requires assignment operator
-			__a = __a;                        
+			__a = __a; 
+      // prvalue expression of type T 
+      __a = T();                      
 			__const_constraints(__a);
 		}
 		void 
@@ -290,6 +295,7 @@ type
 		__constraints() 
 		{
 			__aux_require_boolean_expr(__a == __b);
+ 			__aux_require_boolean_expr(__a != __b);    
 		}
 		T __a;
 		T __b;
@@ -333,10 +339,10 @@ type
 		{
 			__function_requires< TrivialIteratorConcept<T> >();
 			// require iterator_traits typedef's
-			typedef typename std::iterator_traits<T>::difference_type _Diff;
-			typedef typename std::iterator_traits<T>::reference _Ref;
-			typedef typename std::iterator_traits<T>::pointer _Pt;
-			typedef typename std::iterator_traits<T>::iterator_category _Cat;
+			typedef typename type::Iterator_traits<T>::difference_type _Diff;
+			typedef typename type::Iterator_traits<T>::reference _Ref;
+			typedef typename type::Iterator_traits<T>::pointer _Pt;
+			typedef typename type::Iterator_traits<T>::iterator_category _Cat;
 			__function_requires< ConvertibleConcept<
 																							typename type::Iterator_traits<T>::iterator_category,
 																							type::input_iterator_tag> >();
@@ -359,7 +365,7 @@ type
 			__function_requires< ConvertibleConcept<
 																							typename type::Iterator_traits<T>::iterator_category,
 																							type::forward_iterator_tag> >();
-			typedef typename std::iterator_traits<T>::reference _Ref;
+			typedef typename type::Iterator_traits<T>::reference _Ref;
 			_Ref __r _IsUnused = *__i;
 		}
 		T __i;
@@ -428,32 +434,54 @@ type
 		typename type::Iterator_traits<T>::difference_type __n;
 	};  
 	// Container Concepts
-	template <class _Container>
+	template <class Container>
 	struct 
 	ContainerConcept
 	{
-		typedef typename _Container::value_type _Value_type;
-		typedef typename _Container::difference_type _Difference_type;
-		typedef typename _Container::size_type _Size_type;
-		typedef typename _Container::const_reference _Const_reference;
-		typedef typename _Container::const_pointer _Const_pointer;
-		typedef typename _Container::const_iterator _Const_iterator;
+		typedef typename Container::value_type Value_type;
+		typedef typename Container::difference_type Difference_type;
+		typedef typename Container::size_type Size_type;
+		typedef typename Container::reference Reference;
+		typedef typename Container::const_reference Const_reference;
+		typedef typename Container::const_pointer Const_pointer;
+		typedef typename Container::const_iterator Const_iterator;
+		typedef typename Container::iterator Iterator;
 
 		void 
 		__constraints() 
 		{
-			__function_requires< InputIteratorConcept<_Const_iterator> >();
-			__function_requires< AssignableConcept<_Container> >();
-			const _Container __c;
+      // C++ standard Container requirements
+      // Types
+			__function_requires< CopyConstructibleConcept<Value_type> >();        
+			__function_requires< EqualityComparableConcept<Value_type> >();
+
+        // C++ standards specifies ForwardIteratorConcept requirement
+			__function_requires< InputIteratorConcept<Iterator> >();
+			__function_requires< InputIteratorConcept<Const_iterator> >();
+
+			__function_requires< ConvertibleConcept<
+																							typename type::Iterator_traits<Iterator>::difference_type,
+																							Difference_type> >();
+			__function_requires< ConvertibleConcept<
+																							typename type::Iterator_traits<Const_iterator>::difference_type,
+																							Difference_type> >();
+        
+      // Member functions and operators                                        
+ 			__function_requires< DefaultConstructibleConcept<Container> >();
+			__function_requires< CopyConstructibleConcept<Container> >();        
+			__function_requires< AssignableConcept<Container> >();
+			__function_requires< EqualityComparableConcept<Container> >();
+
+			const Container __c;
 			__i = __c.begin();
-			__i = __c.end();
+			__i = __c.end();    
 			__n = __c.size();
 			__n = __c.max_size();
 			__b = __c.empty();
 		}
 		bool __b;
-		_Const_iterator __i;
-		_Size_type __n;
+		Const_iterator __i;
+		Size_type __n;
 	};	
   template <class Container>
   struct 
@@ -473,6 +501,7 @@ type
 
       __i = __c.begin();
       __i = __c.end();
+      // C++ standards specifies ContainerConcept requirement
       __c.swap(__c2);
     }
     Iterator __i;
@@ -498,6 +527,9 @@ type
     void 
     __constraints() 
     {
+      // Includes all C++ standards requirements for a container  
+      // https://en.cppreference.com/w/cpp/named_req/Container
+
       __function_requires< ForwardContainerConcept<ForwardContainer> >();
       __function_requires< Mutable_ContainerConcept<ForwardContainer> >();
       typedef typename ForwardContainer::iterator Iterator;
